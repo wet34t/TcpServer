@@ -56,7 +56,7 @@ std::string TcpConnection::processBody(size_t bodyLen) {
     // Only process the first 4 bytes or entire body whichever is less
     int hexes = std::min(DATAPRINT, (int)bodyLen);
     if (!waitForBytes(hexes)) {
-        handleError("Error waiting for body message");
+        handleError("Timed out waiting for body message");
         return "";
     }
     unsigned bodyHexes[hexes];
@@ -81,7 +81,7 @@ std::string TcpConnection::processBody(size_t bodyLen) {
     while (len <= bodyLen) {
         if (!len) break;
         if (!waitForBytes(len)) {
-            handleError("Error waiting for body message");
+            handleError("Timed out waiting for body message");
             return "";
         }
         readBytes(len, err);
@@ -99,7 +99,7 @@ std::string TcpConnection::processHeader(size_t *len) {
     system::error_code err;
     // Process the type which is first 2 bytes
     if (!waitForBytes(TYPESIZE)) {
-        handleError("Error waiting to read header type");
+        handleError("Timed out waiting to read header type");
         return "";
     }
     unsigned headerType[TYPESIZE];
@@ -118,7 +118,7 @@ std::string TcpConnection::processHeader(size_t *len) {
 
     // Process the Length, which is next 4 bytes
     if (!waitForBytes(LENSIZE)) {
-        handleError("Error waiting to read header length");
+        handleError("Timed out waiting to read header length");
         return "";
     }
     unsigned headerLen[LENSIZE];
@@ -154,6 +154,7 @@ void TcpConnection::ReadPackets() {
         }
         if (err_) break;
         // Finished reading entire TLV blob, print the results as required
+        // Will print even if future blobs fail.
         log_ << "[" << remoteIpAddress_ << ":" << remotePort_ << "] " << header << " [" << body << "]\n";
     }
     if (!err_) {
