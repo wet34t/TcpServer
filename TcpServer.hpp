@@ -1,48 +1,36 @@
+#ifndef TCP_SERVER
+#define TCP_SERVER
+
 #include <thread>
 #include <memory>
-#include "logger.hpp"
+#include "TcpConnection.hpp"
+#include "Logger.hpp"
+#include "IpStatistics.hpp"
+
+#define maxConnections 4
+#define maxErrorsBeforeBlock 2
 
 using namespace boost;
 
-struct TcpServer_t {
+class TcpServer {
 private:
     asio::ip::tcp::endpoint ep_;
-    asio::io_context context_;
+    asio::io_context &context_;
     asio::ip::tcp::acceptor acceptor_;
-    const logger &log_;
-    std::vector<std::thread> threads_;
-    // Malicious IPs
-    // Free up connections
-
-void acceptCallBack(std::shared_ptr<TcpConnection> con) {
-    log_ << std::this_thread::get_id() << ": acceptCallBack\n";
-    std::thread t(&TcpConnection::ReadPackets, con);
-    threads_.push_back(std::move(t));
-}
+    const Logger &log_;
+    unsigned totalConnections_;
+    std::vector<std::pair <std::thread,std::shared_ptr<TcpConnection>>> connectionThreads_;
+    std::shared_ptr<struct IpStatistics_t> ipStats_;
+    
+    void clearConnections();
+    void acceptHandler(system::error_code, asio::ip::tcp::socket);
+    bool acceptConnection(std::string &, uint_least16_t);
 
 public:
-    TcpServer_t(asio::ip::tcp type, uint_least16_t port, logger &log) :
-    context_(),
-    ep_(type, port),
-    acceptor_(context_, ep_),
-    log_(log)
-    {
-    }
-
-    ~TcpServer_t() {
-        log_.Info("Server Shutdown, joining threads\n");
-        for (int i=0; i<threads_.size(); i++) {
-            threads_[i].join();
-        }
-    }
-
-    void Listen() {
-        for (int i=0; i<5; i++) {
-            std::shared_ptr<TcpConnection> con = std::make_shared<TcpConnection>(context_, log_);
-            acceptor_.async_accept(con->GetSock(), std::bind(&TcpServer_t::acceptCallBack, this, con));
-        }
-        context_.run();
-
-    }
-
+    TcpServer(asio::io_context &, asio::ip::tcp, uint_least16_t, Logger &);
+    ~TcpServer();
+    void StartListen();
+    unsigned GetTotalConnections() const;
 };
+
+#endif

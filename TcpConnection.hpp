@@ -3,33 +3,41 @@
 
 #include <string>
 #include <vector>
-#include <thread>
 #include <boost/asio.hpp>
-#include "logger.hpp"
+#include "Logger.hpp"
+#include "IpStatistics.hpp"
 
 #define TYPESIZE 2
 #define LENSIZE 4
-#define GOODBYEHEADER "by"
-#define timeout 10
+#define TIMEOUT 10
+#define MAXBATCHSIZE 10
 
 using namespace boost;
 
 class TcpConnection {
 private:
     asio::ip::tcp::socket sock_;
-    time_t start_;
-    const logger &log_;
-    bool endConnection_;
+    const Logger &log_;
+    std::shared_ptr<struct IpStatistics_t> ipStats_;
+    std::string remoteIpAddress_;
+    uint_least16_t remotePort_;
+    bool byeReceived_;
+    bool active_;
+    bool err_;
 
-    std::string read(size_t);
-    bool waitForResult(size_t);
+    std::string getHeaderType(unsigned *, system::error_code &);
+    void readBytes(size_t, system::error_code &);
+    void readBytesToHex(size_t, unsigned *, system::error_code &);
+    bool waitForBytes(size_t);
     void processBody(size_t);
     size_t processHeader();
+    void handleError(std::string);
 
 public:
-    TcpConnection(boost::asio::io_context& context, const logger &log);
+    TcpConnection(asio::ip::tcp::socket, const Logger &, std::shared_ptr<struct IpStatistics_t>);
+    ~TcpConnection();
     void ReadPackets();
-    asio::ip::tcp::socket& GetSock();
+    bool IsActive() const;
 };
 
 #endif
