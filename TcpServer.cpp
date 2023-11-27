@@ -59,7 +59,7 @@ void TcpServer::acceptHandler(system::error_code err, asio::ip::tcp::socket sock
             }
             locker.unlock();
             // Still no space, wait a while and try again
-            std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+            std::this_thread::sleep_for(std::chrono::seconds(clearConnectionsInterval_));
         }
         locker.lock();
         connectionThreads_.push_back(std::pair <std::thread,std::shared_ptr<TcpConnection>>(std::move(t), con));
