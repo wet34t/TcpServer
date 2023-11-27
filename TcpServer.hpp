@@ -18,17 +18,25 @@ private:
     asio::ip::tcp::acceptor acceptor_;
     const Logger &log_; // logger to log info, it's shared between Server and all connections
     unsigned totalConnections_; // Total connections to this server
+    bool alive_;
+    int clearConnectionsInterval_;
+    std::thread clearConnectionThread_;
+    std::mutex connectionListMutex_;
     std::shared_ptr<struct IpStatistics_t> ipStats_; // IpStatistics_t to gather stats, created by Server, shared with all connections
     // A vector of thread and TcpConnection pairs. Each TcpConnection handles a connection in an associated thread.
     std::vector<std::pair <std::thread,std::shared_ptr<TcpConnection>>> connectionThreads_;
     const int MAXALLOWEDERRORS = 5; // Max errors received from an IP before considering that IP as malicious and blocking it
 
     /*
-    * Attempt to clear connections, this is called when MAXCONNECTIONS is reached.
-    * A potential design is for the server could also call this function periodically to clean up stale connections
-    * Or the Connection could notify the server to clean it up instead of calling this.
+    * Attempt to clear inactive connections
+    * A potential design is for the Connection to notify the server to clean it up instead of calling this.
     */
     void clearConnections();
+
+    /*
+    * Periodically clear stale connections by calling clearConnections()
+    */
+    void periodicClearConnections();
 
     /*
     * This handler is called when asio::ip::tcp::acceptor::async_accept accepts a connection
@@ -49,7 +57,7 @@ private:
     * param - std::string &ip: The ip of the incoming connection
     * param - uint_least16_t port: The port of the incoming connection (currently unused)
     * 
-    * return bool: whether to accept connection
+    * return bool - whether to accept connection
     */
     bool acceptConnection(std::string &ip, const uint_least16_t port) const;
 
@@ -86,16 +94,23 @@ public:
     /*
     * Get the total connections so far
     *
-    * return unsigned: the total connections to this Server
+    * return unsigned - the total connections to this Server
     */
     unsigned GetTotalConnections() const;
 
     /*
     * When this Server first opened
     *
-    * return time_t: the time Server opened
+    * return time_t - the time Server opened
     */
     time_t GetStartTime() const;
+
+    /*
+    * Set the interval for clearing connections
+    *
+    * param - int interval: new interval
+    */
+    void SetClearConnectionsInterval(int interval);
 };
 
 #endif
