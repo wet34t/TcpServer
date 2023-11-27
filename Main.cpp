@@ -2,6 +2,8 @@
 
 using namespace boost;
 
+// Compiled using
+// g++ Main.cpp TcpConnection.cpp TcpServer.cpp -std=c++14
 int main(int argc, char **argv)
 {
     Logger log(std::cout, std::cerr);
