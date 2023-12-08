@@ -22,7 +22,7 @@ int main(int argc, char **argv)
     try {
         asio::io_context context;
         std::unique_ptr<TcpServer> server = std::make_unique<TcpServer>(context, asio::ip::tcp::v4(), port, log); // v4() for INADDR_ANY or v6() for in6addr_any
-        server->StartListen();
+        server->StartServer();
         context.run(); // Could potentially run this on a separate thread, and main thread can do some other things.
     } catch (std::exception& e)
     {

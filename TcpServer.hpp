@@ -6,8 +6,7 @@
 #include "TcpConnection.hpp"
 #include "Logger.hpp"
 #include "IpStatistics.hpp"
-
-#define MAXCONNECTIONS 10 // Max concurrent connections; probably should be based on specs
+#include "ConnectionUtilities.hpp"
 
 using namespace boost;
 
@@ -19,24 +18,12 @@ private:
     const Logger &log_; // logger to log info, it's shared between Server and all connections
     unsigned totalConnections_; // Total connections to this server
     bool alive_;
-    int clearConnectionsInterval_;
-    std::thread clearConnectionThread_;
-    std::mutex connectionListMutex_;
     std::shared_ptr<struct IpStatistics_t> ipStats_; // IpStatistics_t to gather stats, created by Server, shared with all connections
-    // A vector of thread and TcpConnection pairs. Each TcpConnection handles a connection in an associated thread.
-    std::vector<std::pair <std::thread,std::shared_ptr<TcpConnection>>> connectionThreads_;
+    // A Queue of connections
+    std::shared_ptr<ConnectionsQueue> connectionsQueue_;
+    std::vector<std::unique_ptr<ConnectionsThread>> threads_;
+    const int MAXTHREADS = 10; // Max concurrent connections; probably should be based on specs
     const int MAXALLOWEDERRORS = 5; // Max errors received from an IP before considering that IP as malicious and blocking it
-
-    /*
-    * Attempt to clear inactive connections
-    * A potential design is for the Connection to notify the server to clean it up instead of calling this.
-    */
-    void clearConnections();
-
-    /*
-    * Periodically clear stale connections by calling clearConnections()
-    */
-    void periodicClearConnections();
 
     /*
     * This handler is called when asio::ip::tcp::acceptor::async_accept accepts a connection
@@ -60,6 +47,12 @@ private:
     * return bool - whether to accept connection
     */
     bool acceptConnection(std::string &ip, const uint_least16_t port) const;
+
+    /*
+    * Start listening to connections using asio::ip::tcp::acceptor::async_accept
+    * This also gets called by acceptHandler() so it can start accepting more connections
+    */
+    void startListen();
 
 public:
     /*
@@ -85,11 +78,9 @@ public:
     */
     ~TcpServer();
 
-    /*
-    * Start listening to connections using asio::ip::tcp::acceptor::async_accept
-    * This also gets called by acceptHandler() so it can start accepting more connections
-    */
-    void StartListen();
+    void StartServer();
+
+    void StopServer();
 
     /*
     * Get the total connections so far
